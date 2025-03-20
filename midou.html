@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>amria</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #f4f4f4;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+      overflow: hidden;
+    }
+    
+    h1 {
+      color: #333;
+      margin: 10px 0;
+      font-size: 24px;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 800px;
+    }
+    
+    .top-section {
+      display: flex;
+      width: 100%;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .maze {
+      display: grid;
+      grid-template-columns: repeat(12, 40px);
+      grid-template-rows: repeat(8, 40px);
+      gap: 1px;
+      position: relative;
+      background-color: white;
+      padding: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 4px;
+    }
+    
+    .info-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .cell {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      border: 1px solid #ddd;
+      position: relative;
+      transition: background-color 0.3s;
+      font-size: 14px;
+    }
+    
+    .wall {
+      background-color: #333;
+    }
+    
+    .node {
+      border: 2px solid #007bff;
+      color: #007bff;
+    }
+    
+    .robot {
+      width: 24px;
+      height: 24px;
+      background-color: red;
+      border-radius: 50%;
+      position: absolute;
+      transition: 0.3s;
+      z-index: 10;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+    
+    .visited-bfs { background-color: rgba(99, 8, 87, 0.5); }
+    .visited-dfs { background-color: rgba(255, 182, 193, 0.5); }
+    .visited-astar { background-color: rgba(175, 125, 39, 0.5); }
+    
+    .path {
+      background-color: rgba(144, 238, 144, 0.7) !important;
+    }
+    
+    .start { background-color: rgba(144, 238, 144, 0.3); }
+    .goal { background-color: rgba(255, 215, 0, 0.3); }
+    
+    .node-path {
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(0, 123, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+    }
+    
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+      flex: 1;
+    }
+    
+    button:hover { background-color: #45a049; }
+    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    
+    #stats, .path-info {
+      padding: 10px;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-size: 13px;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .path-display {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .bottom-section {
+      display: flex;
+      width: 100%;
+      gap: 10px;
+    }
+    
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+    }
+    
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Maze Solving Robot</h1>
+    
+    <div class="controls">
+      <button onclick="startSearch('BFS')">BFS</button>
+      <button onclick="startSearch('DFS')">DFS</button>
+      <button onclick="startSearch('ASTAR')">A*</button>
+      <button onclick="resetMaze()">Reset</button>
+    </div>
+    
+    <div class="top-section">
+      <div class="maze" id="maze"></div>
+      
+      <div class="info-panel">
+        <div id="stats">Select an algorithm to start the robot</div>
+        
+        <div class="path-display">
+          <div class="path-info" id="explored-path">Explored Path: </div>
+          <div class="path-info" id="solution-path">Solution Path: </div>
+        </div>
+        
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(144, 238, 144, 0.7);"></div>
+            <span>Final Path</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(144, 238, 144, 0.3);"></div>
+            <span>Start (A)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(255, 215, 0, 0.3);"></div>
+            <span>Goal (B)</span>
+          </div>
+          <div class="legend-item algorithm-legend" data-algorithm="BFS" style="display: none;">
+            <div class="legend-color" style="background-color: rgba(173, 216, 230, 0.5);"></div>
+            <span>BFS Visited</span>
+          </div>
+          <div class="legend-item algorithm-legend" data-algorithm="DFS" style="display: none;">
+            <div class="legend-color" style="background-color: rgba(255, 182, 193, 0.5);"></div>
+            <span>DFS Visited</span>
+          </div>
+          <div class="legend-item algorithm-legend" data-algorithm="ASTAR" style="display: none;">
+            <div class="legend-color" style="background-color: rgba(255, 228, 181, 0.5);"></div>
+            <span>A* Visited</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const walls = new Set([
+      "1,2", "1,4", "1,6", "1,7", "1,8", "1,11", "2,2", "2,4", "2,8", "2,10", "2,11", "3,4", "3,6", "3,10", "3,11", "4,1", "4,3", "4,4", "4,6", "4,8", "4,10", "4,11",
+      "5,1", "5,6", "5,8", "6,1", "6,2", "6,3", "6,5", "6,6", "6,9", "6,8", "6,10", "6,11", "6,12", "7,5", "7,6", "8,6","8,5"
+    ]);
+
+    // Node labels and their positions
+    const nodeLabels = {
+      "8,1": "A", // Start
+      "1,1": "8", "1,3": "9", "1,5": "11", "1,9": "18", "1,10": "19", "1,12": "B", // Goal
+      "2,5": "10","2,6": "12","2,7": "13",
+      "3,1": "6", "3,2": "5", "3,3": "7",  "3,7": "14",  "3,9": "17",
+      "5,2": "3", "5,4": "2", "5,5": "4", "5,9": "20",  "5,12": "21",
+      "8,4": "1", "8,7": "15",  "8,12": "16"
+    };
+
+    // Heuristic values for each node
+    const heuristics = {
+      "A": 8, "1": 6, "2": 6, "3": 6, "4": 7, "5": 4, "6": 12, "7": 7, "8": 15, "9": 18, 
+      "10": 6, "11": 8, "12": 6, "13": 5, "14": 4, "15": 8, "16": 6, "17": 3, "18": 5, 
+      "19": 5, "20": 2, "21": 1, "B": 0
+    };
+
+    // Animation speeds for different algorithms
+    const animationSpeeds = {
+      'BFS': 200,
+      'DFS': 150,
+      'ASTAR': 200
+    };
+
+    // Colors for different algorithms
+    const algorithmColors = {
+      'BFS': 'rgba(173, 216, 230, 0.5)',
+      'DFS': 'rgba(255, 182, 193, 0.5)',
+      'ASTAR': 'rgba(255, 228, 181, 0.5)'
+    };
+
+    // Map from position to node label
+    const positionToNode = {};
+    for (const [pos, label] of Object.entries(nodeLabels)) {
+      positionToNode[pos] = label;
+    }
+
+    // Map from node label to position
+    const nodeToPosition = {};
+    for (const [pos, label] of Object.entries(nodeLabels)) {
+      nodeToPosition[label] = pos;
+    }
+
+    // Create a graph of direct connections between nodes
+    const nodeGraph = {};
+    const START_NODE = "A";
+    const GOAL_NODE = "B";
+    const START_POINT = nodeToPosition[START_NODE];
+    const GOAL_POINT = nodeToPosition[GOAL_NODE];
+
+    const mazeElement = document.getElementById("maze");
+    const statsElement = document.getElementById("stats");
+    const exploredPathElement = document.getElementById("explored-path");
+    const solutionPathElement = document.getElementById("solution-path");
+
+    let robot = null;
+    let cellElements = {};
+    let isSearching = false;
+    let searchTimeout = null;
+    let currentAlgorithm = '';
+
+    // Find direct paths between nodes
+    function findDirectPathsBetweenNodes() {
+      // Get all node positions
+      const nodePositionsList = Object.keys(nodeLabels);
+      
+      // Initialize node graph
+      for (const nodeLabel of Object.values(nodeLabels)) {
+        nodeGraph[nodeLabel] = {};
+      }
+      
+      // For each node, find direct paths to other nodes
+      for (const startPos of nodePositionsList) {
+        const startLabel = nodeLabels[startPos];
+        findDirectPaths(startPos, startLabel);
+      }
+    }
+
+    // BFS to find direct paths from a node to all directly reachable nodes
+    function findDirectPaths(startPos, startLabel) {
+      const queue = [startPos];
+      const visited = new Set([startPos]);
+      const parent = {};
+      
+      while (queue.length > 0) {
+        const current = queue.shift();
+        
+        // If we've reached another node (not the starting node), record the path
+        if (current !== startPos && nodeLabels[current]) {
+          const path = [];
+          let pos = current;
+          
+          while (pos !== startPos) {
+            path.unshift(pos);
+            pos = parent[pos];
+          }
+          
+          path.unshift(startPos);
+          
+          // Add this direct connection to the node graph with the path and its length
+          const endLabel = nodeLabels[current];
+          nodeGraph[startLabel][endLabel] = {
+            path: path,
+            cost: path.length - 1  // Cost is the number of steps (excluding start position)
+          };
+          
+          // Don't continue BFS from this node, as we want direct paths
+          continue;
+        }
+        
+        for (const neighbor of getPhysicalNeighbors(current)) {
+          if (!visited.has(neighbor) && !walls.has(neighbor)) {
+            visited.add(neighbor);
+            parent[neighbor] = current;
+            queue.push(neighbor);
+          }
+        }
+      }
+    }
+
+    // Physical neighbors for the grid
+    function getPhysicalNeighbors(position) {
+      const [y, x] = position.split(",").map(Number);
+      const potentialNeighbors = [
+        `${y-1},${x}`, // up
+        `${y+1},${x}`, // down
+        `${y},${x-1}`, // left
+        `${y},${x+1}`  // right
+      ];
+      
+      return potentialNeighbors.filter(pos => {
+        const [ny, nx] = pos.split(",").map(Number);
+        return ny >= 1 && ny <= 8 && nx >= 1 && nx <= 12 && !walls.has(pos);
+      });
+    }
+
+    function createMaze() {
+      mazeElement.innerHTML = '';
+      cellElements = {};
+      
+      const fragment = document.createDocumentFragment();
+      
+      for (let y = 1; y <= 8; y++) {
+        for (let x = 1; x <= 12; x++) {
+          const position = `${y},${x}`;
+          const div = document.createElement("div");
+          div.classList.add("cell");
+          div.dataset.position = position;
+          
+          if (walls.has(position)) {
+            div.classList.add("wall");
+          } else if (nodeLabels[position]) {
+            div.classList.add("node");
+            div.textContent = nodeLabels[position];
+            
+            // Add heuristic value as attribute for display
+            if (nodeLabels[position] !== "A" && nodeLabels[position] !== "B") {
+              div.setAttribute("title", `Heuristic: ${heuristics[nodeLabels[position]]}`);
+            }
+          }
+          
+          // Mark start and goal
+          if (position === START_POINT) {
+            div.classList.add("start");
+          } else if (position === GOAL_POINT) {
+            div.classList.add("goal");
+          }
+          
+          fragment.appendChild(div);
+          cellElements[position] = div;
+        }
+      }
+      
+      mazeElement.appendChild(fragment);
+      
+      // Add robot
+      robot = document.createElement("div");
+      robot.classList.add("robot");
+      mazeElement.appendChild(robot);
+      
+      // Position robot at start
+      positionRobot(START_POINT);
+      
+      // Find all direct paths between nodes
+      findDirectPathsBetweenNodes();
+    }
+
+    function positionRobot(position) {
+      const [y, x] = position.split(",").map(Number);
+      const cellX = (x - 1) * 40 + 20;
+      const cellY = (y - 1) * 40 + 20;
+      robot.style.left = `${cellX}px`;
+      robot.style.top = `${cellY}px`;
+    }
+
+    function markVisited(position) {
+      if (cellElements[position] && !cellElements[position].classList.contains("wall")) {
+        cellElements[position].classList.add("visited");
+        
+        // Add algorithm-specific class for coloring
+        if (currentAlgorithm) {
+          cellElements[position].classList.add(`visited-${currentAlgorithm.toLowerCase()}`);
+          cellElements[position].style.backgroundColor = algorithmColors[currentAlgorithm];
+        }
+      }
+    }
+
+    function markPath(position) {
+      if (cellElements[position] && !cellElements[position].classList.contains("wall")) {
+        cellElements[position].classList.add("path");
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => {
+        searchTimeout = setTimeout(resolve, ms);
+      });
+    }
+
+    // Animate a physical path in the grid
+    async function animatePath(path) {
+      for (const pos of path) {
+        markPath(pos);
+        positionRobot(pos);
+        await sleep(80);
+      }
+    }
+
+    // Node-based BFS algorithm
+    async function nodeBFS(start, goal) {
+      const queue = [start];
+      const visited = new Set([start]);
+      const parent = {};
+      const nodePath = [];
+      let exploredCount = 0;
+      
+      while (queue.length > 0) {
+        const currentNode = queue.shift();
+        nodePath.push(currentNode);
+        exploredCount++;
+        
+        // Mark the node as visited
+        const nodePosition = nodeToPosition[currentNode];
+        markVisited(nodePosition);
+        positionRobot(nodePosition);
+        await sleep(animationSpeeds.BFS);
+        
+        if (currentNode === goal) {
+          // Reconstruct path
+          const solutionNodePath = [];
+          let node = goal;
+          
+          while (node !== start) {
+            solutionNodePath.unshift(node);
+            node = parent[node];
+          }
+          
+          solutionNodePath.unshift(start);
+          
+          // Get physical path
+          const physicalPath = [];
+          for (let i = 0; i < solutionNodePath.length - 1; i++) {
+            const fromNode = solutionNodePath[i];
+            const toNode = solutionNodePath[i + 1];
+            
+            // Get the direct path between these nodes
+            const segmentPath = nodeGraph[fromNode][toNode].path;
+            
+            // Skip the first position if not the first segment (to avoid duplication)
+            if (i > 0) {
+              physicalPath.push(...segmentPath.slice(1));
+            } else {
+              physicalPath.push(...segmentPath);
+            }
+          }
+          
+          return {
+            nodePath: solutionNodePath,
+            exploredPath: nodePath,
+            physicalPath: physicalPath,
+            exploredCount: exploredCount
+          };
+        }
+        
+        // Check all directly connected nodes
+        for (const [neighborNode, pathInfo] of Object.entries(nodeGraph[currentNode])) {
+          if (!visited.has(neighborNode)) {
+            visited.add(neighborNode);
+            parent[neighborNode] = currentNode;
+            queue.push(neighborNode);
+          }
+        }
+      }
+      
+      return {
+        nodePath: [],
+        exploredPath: nodePath,
+        physicalPath: [],
+        exploredCount: exploredCount
+      };
+    }
+
+    // Node-based DFS algorithm
+    async function nodeDFS(start, goal) {
+      const stack = [start];
+      const visited = new Set([start]);
+      const parent = {};
+      const nodePath = [];
+      let exploredCount = 0;
+      
+      while (stack.length > 0) {
+        const currentNode = stack.pop();
+        nodePath.push(currentNode);
+        exploredCount++;
+        
+        // Mark the node as visited
+        const nodePosition = nodeToPosition[currentNode];
+        markVisited(nodePosition);
+        positionRobot(nodePosition);
+        await sleep(animationSpeeds.DFS);
+        
+        if (currentNode === goal) {
+          // Reconstruct path
+          const solutionNodePath = [];
+          let node = goal;
+          
+          while (node !== start) {
+            solutionNodePath.unshift(node);
+            node = parent[node];
+          }
+          
+          solutionNodePath.unshift(start);
+          
+          // Get physical path
+          const physicalPath = [];
+          for (let i = 0; i < solutionNodePath.length - 1; i++) {
+            const fromNode = solutionNodePath[i];
+            const toNode = solutionNodePath[i + 1];
+            
+            // Get the direct path between these nodes
+            const segmentPath = nodeGraph[fromNode][toNode].path;
+            
+            // Skip the first position if not the first segment (to avoid duplication)
+            if (i > 0) {
+              physicalPath.push(...segmentPath.slice(1));
+            } else {
+              physicalPath.push(...segmentPath);
+            }
+          }
+          
+          return {
+            nodePath: solutionNodePath,
+            exploredPath: nodePath,
+            physicalPath: physicalPath,
+            exploredCount: exploredCount
+          };
+        }
+        
+        // Get all neighbors of the current node
+        const neighbors = Object.keys(nodeGraph[currentNode]);
+        
+        // Add neighbors to stack in reverse order (to simulate a stack)
+        for (let i = neighbors.length - 1; i >= 0; i--) {
+          const neighborNode = neighbors[i];
+          if (!visited.has(neighborNode)) {
+            visited.add(neighborNode);
+            parent[neighborNode] = currentNode;
+            stack.push(neighborNode);
+          }
+        }
+      }
+      
+      return {
+        nodePath: [],
+        exploredPath: nodePath,
+        physicalPath: [],
+        exploredCount: exploredCount
+      };
+    }
+
+    // Node-based A* algorithm
+    async function nodeAStar(start, goal) {
+      const openSet = [start];
+      const closedSet = new Set();
+      const parent = {};
+      const nodePath = [];
+      let exploredCount = 0;
+      
+      // g-score: cost from start to current node
+      const gScore = {};
+      gScore[start] = 0;
+      
+      // f-score: estimated total cost from start to goal through current node
+      const fScore = {};
+      fScore[start] = heuristics[start];
+      
+      while (openSet.length > 0) {
+        // Find node with lowest f-score
+        let currentNode = openSet[0];
+        let lowestFScore = fScore[currentNode];
+        let lowestIndex = 0;
+        
+        for (let i = 1; i < openSet.length; i++) {
+          if (fScore[openSet[i]] < lowestFScore) {
+            lowestFScore = fScore[openSet[i]];
+            currentNode = openSet[i];
+            lowestIndex = i;
+          }
+        }
+        
+        // Remove current from openSet
+        openSet.splice(lowestIndex, 1);
+        nodePath.push(currentNode);
+        exploredCount++;
+        
+        // Mark the node as visited
+        const nodePosition = nodeToPosition[currentNode];
+        markVisited(nodePosition);
+        positionRobot(nodePosition);
+        await sleep(animationSpeeds.ASTAR);
+        
+        if (currentNode === goal) {
+          // Reconstruct path
+          const solutionNodePath = [];
+          let node = goal;
+          
+          while (node !== start) {
+            solutionNodePath.unshift(node);
+            node = parent[node];
+          }
+          
+          solutionNodePath.unshift(start);
+          
+          // Get physical path
+          const physicalPath = [];
+          for (let i = 0; i < solutionNodePath.length - 1; i++) {
+            const fromNode = solutionNodePath[i];
+            const toNode = solutionNodePath[i + 1];
+            
+            // Get the direct path between these nodes
+            const segmentPath = nodeGraph[fromNode][toNode].path;
+            
+            // Skip the first position if not the first segment (to avoid duplication)
+            if (i > 0) {
+              physicalPath.push(...segmentPath.slice(1));
+            } else {
+              physicalPath.push(...segmentPath);
+            }
+          }
+          
+          return {
+            nodePath: solutionNodePath,
+            exploredPath: nodePath,
+            physicalPath: physicalPath,
+            exploredCount: exploredCount
+          };
+        }
+        
+        closedSet.add(currentNode);
+        
+        // Check all directly connected nodes
+        for (const [neighborNode, pathInfo] of Object.entries(nodeGraph[currentNode])) {
+          if (closedSet.has(neighborNode)) continue;
+          
+          // Cost to move from current to neighbor
+          const tentativeGScore = gScore[currentNode] + pathInfo.cost;
+          
+          if (!openSet.includes(neighborNode)) {
+            openSet.push(neighborNode);
+          } else if (tentativeGScore >= (gScore[neighborNode] || Infinity)) {
+            continue;
+          }
+          
+          parent[neighborNode] = currentNode;
+          gScore[neighborNode] = tentativeGScore;
+          fScore[neighborNode] = gScore[neighborNode] + heuristics[neighborNode];
+        }
+      }
+      
+      return {
+        nodePath: [],
+        exploredPath: nodePath,
+        physicalPath: [],
+        exploredCount: exploredCount
+      };
+    }
+
+    async function startSearch(algorithm) {
+      if (isSearching) return;
+      isSearching = true;
+      
+      resetMaze();
+      currentAlgorithm = algorithm;
+      
+      // Show algorithm-specific legend item
+      document.querySelectorAll('.algorithm-legend').forEach(item => {
+        item.style.display = item.dataset.algorithm === algorithm ? 'flex' : 'none';
+      });
+      
+      // Disable buttons
+      document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+      
+      statsElement.textContent = `Running ${algorithm}...`;
+      exploredPathElement.textContent = "Explored Path: ";
+      solutionPathElement.textContent = "Solution Path: ";
+      
+      let result;
+      const startTime = performance.now();
+      
+      try {
+        switch (algorithm) {
+          case 'BFS':
+            result = await nodeBFS(START_NODE, GOAL_NODE);
+            break;
+          case 'DFS':
+            result = await nodeDFS(START_NODE, GOAL_NODE);
+            break;
+          case 'ASTAR':
+            result = await nodeAStar(START_NODE, GOAL_NODE);
+            break;
+        }
+        
+        const endTime = performance.now();
+        const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+        
+        if (result.nodePath.length > 0) {
+          await animatePath(result.physicalPath);
+          statsElement.innerHTML = `
+            <strong>${algorithm}</strong> found a path!<br>
+            Path: ${result.nodePath.length - 1} nodes (${result.physicalPath.length} cells)<br>
+            Explored: ${result.exploredCount} nodes<br>
+            Time: ${timeTaken}s
+          `;
+          
+          // Display paths with improved formatting
+          exploredPathElement.textContent = "Explored: " + result.exploredPath.join(" → ");
+          solutionPathElement.textContent = "Solution: " + result.nodePath.join(" → ");
+          
+          // Highlight node path on the maze
+          highlightNodePath(result.nodePath);
+        } else {
+          statsElement.textContent = `${algorithm} could not find a path to the goal.`;
+        }
+      } catch (error) {
+        console.error(error);
+        statsElement.textContent = `Error running ${algorithm}: ${error.message}`;
+      }
+      
+      // Re-enable buttons
+      document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+      isSearching = false;
+    }
+
+    function highlightNodePath(nodePath) {
+      // Add pulsing effect to node path
+      for (const nodeLabel of nodePath) {
+        const position = nodeToPosition[nodeLabel];
+        if (position && cellElements[position]) {
+          cellElements[position].classList.add("node-path");
+        }
+      }
+    }
+
+    function resetMaze() {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+      
+      currentAlgorithm = '';
+      
+      // Hide all algorithm-specific legend items
+      document.querySelectorAll('.algorithm-legend').forEach(item => {
+        item.style.display = 'none';
+      });
+      
+      // Clear visited and path classes
+      for (const pos in cellElements) {
+        cellElements[pos].classList.remove("visited", "path", "node-path");
+        cellElements[pos].classList.remove("visited-bfs", "visited-dfs", "visited-astar");
+        cellElements[pos].style.backgroundColor = '';
+      }
+      
+      // Reset robot position
+      positionRobot(START_POINT);
+      
+      statsElement.textContent = "Select an algorithm to start the robot";
+      exploredPathElement.textContent = "Explored Path: ";
+      solutionPathElement.textContent = "Solution Path: ";
+    }
+
+    // Initialize the maze
+    createMaze();
+  </script>
+</body>
+</html>
