@@ -1,5 +1,3 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/maze/$1" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/midou.html" }]
 }
