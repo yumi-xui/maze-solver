@@ -1,6 +1,13 @@
 {
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/maze/midou.html",
+      "headers": [{ "key": "Accept-Ranges", "value": "bytes" }]
+    }
+  ],
   "rewrites": [
-    { "source": "/midou", "destination": "/midou.html" },
-    { "source": "/midou/", "destination": "/midou.html" }
+    { "source": "/midou", "destination": "/maze/midou.html" },
+    { "source": "/maze/midou", "destination": "/maze/midou.html" }
   ]
 }
