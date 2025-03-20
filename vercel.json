@@ -1,0 +1,7 @@
+{
+    "rewrites": [
+      { "source": "/maze-robot", "destination": "/maze-robot/midou.html" },
+      { "source": "/maze-robot/", "destination": "/maze-robot/midou.html" }
+    ]
+  }
+  
